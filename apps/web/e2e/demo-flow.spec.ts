@@ -15,7 +15,7 @@ test('demo flow: login → simulate analysis → call details', async ({ page })
   await expect(page.getByText('BrightLedger')).toBeVisible();
 
   await page.goto('/dev/demo');
-  await page.getByLabel('All seeded leads').selectOption({ label: /Sarah Chen/ });
+  await page.getByLabel('All seeded leads').selectOption({ label: 'Sarah Chen' });
   await page.getByLabel('Event').selectOption('call_analyzed');
   await page.getByRole('button', { name: 'Simulate Retell Webhook' }).click();
 
