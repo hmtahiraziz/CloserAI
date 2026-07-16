@@ -16,7 +16,8 @@
     "migrate:deploy": "prisma migrate deploy",
     "seed": "tsx prisma/seed.ts",
     "studio": "prisma studio",
-    "build": "tsc -p tsconfig.json",
+    "build": "prisma generate && rm -rf dist && tsc -p tsconfig.json",
+    "postinstall": "prisma generate",
     "typecheck": "tsc -p tsconfig.json --noEmit",
     "lint": "echo \"no lint configured\""
   },

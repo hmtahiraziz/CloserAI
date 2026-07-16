@@ -7,7 +7,7 @@
     "dev": "pnpm -r --parallel --filter @closerai/api --filter @closerai/web run dev",
     "dev:api": "pnpm --filter @closerai/api dev",
     "dev:web": "pnpm --filter @closerai/web dev",
-    "build": "pnpm -r run build",
+    "build": "pnpm db:generate && pnpm -r run build",
     "db:generate": "pnpm --filter @closerai/database generate",
     "db:migrate": "pnpm --filter @closerai/database migrate:dev",
     "db:migrate:deploy": "pnpm --filter @closerai/database migrate:deploy",
