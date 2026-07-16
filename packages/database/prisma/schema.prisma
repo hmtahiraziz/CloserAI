@@ -1,0 +1,648 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+enum UserRole {
+  ADMIN
+  SALES_REP
+}
+
+enum LeadStatus {
+  NEW
+  READY_TO_CALL
+  CALLING
+  CONTACTED
+  QUALIFIED
+  UNQUALIFIED
+  CALLBACK_REQUESTED
+  MEETING_BOOKED
+  DO_NOT_CALL
+  CONVERTED
+  LOST
+}
+
+enum PipelineStage {
+  NEW_LEAD
+  DISCOVERY
+  QUALIFIED
+  DEMO_BOOKED
+  PROPOSAL
+  NEGOTIATION
+  WON
+  LOST
+}
+
+enum CampaignStatus {
+  DRAFT
+  ACTIVE
+  PAUSED
+  COMPLETED
+  ARCHIVED
+}
+
+enum CampaignLeadStatus {
+  PENDING
+  QUEUED
+  CALLED
+  COMPLETED
+  SKIPPED
+  FAILED
+}
+
+enum CallDirection {
+  OUTBOUND
+  INBOUND
+}
+
+enum CallStatus {
+  QUEUED
+  RINGING
+  IN_PROGRESS
+  COMPLETED
+  FAILED
+  CANCELED
+  NO_ANSWER
+  BUSY
+  VOICEMAIL
+}
+
+enum CallOutcome {
+  MEETING_BOOKED
+  QUALIFIED_NO_MEETING
+  CALLBACK_REQUESTED
+  NOT_INTERESTED
+  NOT_QUALIFIED
+  WRONG_PERSON
+  VOICEMAIL
+  NO_ANSWER
+  BUSY
+  FAILED
+  DO_NOT_CALL
+  TRANSFERRED_TO_HUMAN
+  FOLLOW_UP_REQUIRED
+  UNKNOWN
+}
+
+enum Sentiment {
+  POSITIVE
+  NEUTRAL
+  NEGATIVE
+  MIXED
+  UNKNOWN
+}
+
+enum SalesStrategy {
+  DISCOVERY
+  CONSULTATIVE
+  ROI
+  COMPETITOR_REPLACEMENT
+  URGENCY
+  EDUCATIONAL
+  FAST_CLOSE
+}
+
+enum BudgetLevel {
+  UNKNOWN
+  LOW
+  MEDIUM
+  HIGH
+  CONFIRMED
+}
+
+enum AuthorityLevel {
+  UNKNOWN
+  INFLUENCER
+  EVALUATOR
+  DECISION_MAKER
+}
+
+enum NeedLevel {
+  UNKNOWN
+  LOW
+  MEDIUM
+  HIGH
+  URGENT
+}
+
+enum TimelineLevel {
+  UNKNOWN
+  NO_TIMELINE
+  OVER_90_DAYS
+  WITHIN_90_DAYS
+  WITHIN_30_DAYS
+  IMMEDIATE
+}
+
+enum ObjectionCategory {
+  PRICE
+  BUDGET
+  TIMING
+  AUTHORITY
+  COMPETITOR
+  TRUST
+  FEATURE_GAP
+  NOT_INTERESTED
+  NEEDS_MORE_INFORMATION
+  INTERNAL_RESOURCES
+  IMPLEMENTATION_COMPLEXITY
+  SECURITY
+  OTHER
+}
+
+enum ObjectionSeverity {
+  LOW
+  MEDIUM
+  HIGH
+}
+
+enum AppointmentStatus {
+  SCHEDULED
+  CONFIRMED
+  COMPLETED
+  CANCELED
+  NO_SHOW
+  RESCHEDULED
+}
+
+enum MeetingType {
+  DISCOVERY
+  DEMO
+  PROPOSAL
+  FOLLOW_UP
+  OTHER
+}
+
+enum FollowUpType {
+  CALLBACK
+  EMAIL
+  MEETING_REMINDER
+  OTHER
+}
+
+enum FollowUpStatus {
+  PENDING
+  COMPLETED
+  CANCELED
+  OVERDUE
+}
+
+enum ToolExecutionStatus {
+  SUCCESS
+  FAILURE
+  TIMEOUT
+}
+
+enum HandoffUrgency {
+  LOW
+  MEDIUM
+  HIGH
+}
+
+enum TransferType {
+  COLD
+  WARM
+}
+
+enum JobStatus {
+  PENDING
+  PROCESSING
+  COMPLETED
+  FAILED
+}
+
+enum CompetitorSentiment {
+  POSITIVE
+  NEUTRAL
+  NEGATIVE
+  UNKNOWN
+}
+
+model Organization {
+  id        String   @id @default(cuid())
+  name      String
+  slug      String   @unique
+  timezone  String   @default("America/New_York")
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  users               User[]
+  leads               Lead[]
+  campaigns           Campaign[]
+  calls               Call[]
+  appointments        Appointment[]
+  agentConfigurations AgentConfiguration[]
+  auditLogs           AuditLog[]
+  settings            OrganizationSettings?
+  humanHandoffs       HumanHandoff[]
+
+  @@index([createdAt])
+}
+
+model OrganizationSettings {
+  id                            String       @id @default(cuid())
+  organizationId                String       @unique
+  businessHoursJson             Json         @default("{}")
+  defaultMeetingDurationMinutes Int          @default(30)
+  transferNumber                String?
+  transferType                  TransferType @default(WARM)
+  retellAgentId                 String?
+  retellPhoneNumber             String?
+  complianceRules               String?
+  pricingConfig                 Json         @default("{}")
+  createdAt                     DateTime     @default(now())
+  updatedAt                     DateTime     @updatedAt
+
+  organization Organization @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+}
+
+model User {
+  id             String   @id @default(cuid())
+  organizationId String
+  name           String
+  email          String   @unique
+  passwordHash   String
+  role           UserRole @default(SALES_REP)
+  phone          String?
+  createdAt      DateTime @default(now())
+  updatedAt      DateTime @updatedAt
+
+  organization Organization @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+  auditLogs    AuditLog[]
+
+  @@index([organizationId])
+  @@index([email])
+}
+
+model Lead {
+  id                  String        @id @default(cuid())
+  organizationId      String
+  firstName           String
+  lastName            String
+  email               String?
+  phone               String
+  companyName         String
+  jobTitle            String?
+  companySize         String?
+  industry            String?
+  website             String?
+  country             String?
+  timezone            String?
+  source              String?
+  status              LeadStatus    @default(NEW)
+  pipelineStage       PipelineStage @default(NEW_LEAD)
+  estimatedDealValue  Decimal?      @db.Decimal(12, 2)
+  preferredCallTime   String?
+  notes               String?
+  doNotCall           Boolean       @default(false)
+  knownPainPoint      String?
+  lastContactedAt     DateTime?
+  nextFollowUpAt      DateTime?
+  createdAt           DateTime      @default(now())
+  updatedAt           DateTime      @updatedAt
+
+  organization   Organization    @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+  campaignLeads  CampaignLead[]
+  calls          Call[]
+  appointments   Appointment[]
+  followUps      FollowUp[]
+  humanHandoffs  HumanHandoff[]
+
+  @@index([organizationId])
+  @@index([phone])
+  @@index([status])
+  @@index([pipelineStage])
+  @@index([createdAt])
+  @@index([nextFollowUpAt])
+  @@index([organizationId, status])
+  @@index([organizationId, pipelineStage])
+}
+
+model Campaign {
+  id                 String         @id @default(cuid())
+  organizationId     String
+  name               String
+  description        String?
+  status             CampaignStatus @default(DRAFT)
+  retellAgentId      String?
+  retellPhoneNumber  String?
+  productName        String         @default("AutomateFlow")
+  targetAudience     String?
+  defaultObjective   String?
+  createdAt          DateTime       @default(now())
+  updatedAt          DateTime       @updatedAt
+
+  organization        Organization         @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+  campaignLeads       CampaignLead[]
+  calls               Call[]
+  agentConfigurations AgentConfiguration[]
+
+  @@index([organizationId])
+  @@index([status])
+  @@index([createdAt])
+}
+
+model CampaignLead {
+  id            String             @id @default(cuid())
+  campaignId    String
+  leadId        String
+  status        CampaignLeadStatus @default(PENDING)
+  attemptCount  Int                @default(0)
+  lastAttemptAt DateTime?
+  nextAttemptAt DateTime?
+  createdAt     DateTime           @default(now())
+  updatedAt     DateTime           @updatedAt
+
+  campaign Campaign @relation(fields: [campaignId], references: [id], onDelete: Cascade)
+  lead     Lead     @relation(fields: [leadId], references: [id], onDelete: Cascade)
+
+  @@unique([campaignId, leadId])
+  @@index([campaignId])
+  @@index([leadId])
+  @@index([status])
+  @@index([nextAttemptAt])
+}
+
+model Call {
+  id                     String       @id @default(cuid())
+  organizationId         String
+  leadId                 String
+  campaignId             String?
+  retellCallId           String?      @unique
+  direction              CallDirection @default(OUTBOUND)
+  status                 CallStatus   @default(QUEUED)
+  startedAt              DateTime?
+  endedAt                DateTime?
+  durationSeconds        Int?
+  disconnectionReason    String?
+  recordingUrl           String?
+  transcript             String?
+  transcriptObject       Json?
+  callSummary            String?
+  sentiment              Sentiment    @default(UNKNOWN)
+  callOutcome            CallOutcome  @default(UNKNOWN)
+  qualified              Boolean?
+  leadScore              Int?
+  closeProbability       Int?
+  buyingIntentScore      Int?
+  salesStrategyUsed      SalesStrategy?
+  recommendedNextAction  String?
+  reviewedAt             DateTime?
+  reviewedById           String?
+  isSimulated            Boolean      @default(false)
+  metadata               Json?
+  rawRetellPayload       Json?
+  createdAt              DateTime     @default(now())
+  updatedAt              DateTime     @updatedAt
+
+  organization      Organization       @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+  lead              Lead               @relation(fields: [leadId], references: [id], onDelete: Cascade)
+  campaign          Campaign?          @relation(fields: [campaignId], references: [id], onDelete: SetNull)
+  qualification     Qualification?
+  objections        Objection[]
+  competitorMentions CompetitorMention[]
+  appointments      Appointment[]
+  toolExecutions    ToolExecution[]
+  followUps         FollowUp[]
+  humanHandoffs     HumanHandoff[]
+
+  @@index([organizationId])
+  @@index([leadId])
+  @@index([campaignId])
+  @@index([retellCallId])
+  @@index([status])
+  @@index([callOutcome])
+  @@index([createdAt])
+  @@index([organizationId, status])
+  @@index([organizationId, createdAt])
+}
+
+model Qualification {
+  id               String         @id @default(cuid())
+  callId           String         @unique
+  budgetLevel      BudgetLevel    @default(UNKNOWN)
+  budgetDetails    String?
+  authorityLevel   AuthorityLevel @default(UNKNOWN)
+  authorityDetails String?
+  needLevel        NeedLevel      @default(UNKNOWN)
+  needDetails      String?
+  timelineLevel    TimelineLevel  @default(UNKNOWN)
+  timelineDetails  String?
+  painPoints       Json?
+  businessGoals    Json?
+  currentProcess   String?
+  decisionProcess  String?
+  successCriteria  String?
+  createdAt        DateTime       @default(now())
+  updatedAt        DateTime       @updatedAt
+
+  call Call @relation(fields: [callId], references: [id], onDelete: Cascade)
+}
+
+model Objection {
+  id               String            @id @default(cuid())
+  callId           String
+  category         ObjectionCategory @default(OTHER)
+  statement        String
+  severity         ObjectionSeverity @default(MEDIUM)
+  resolved         Boolean           @default(false)
+  responseUsed     String?
+  resolutionNotes  String?
+  timestampSeconds Int?
+  createdAt        DateTime          @default(now())
+
+  call Call @relation(fields: [callId], references: [id], onDelete: Cascade)
+
+  @@index([callId])
+  @@index([category])
+}
+
+model CompetitorMention {
+  id               String              @id @default(cuid())
+  callId           String
+  competitorName   String
+  context          String?
+  sentiment        CompetitorSentiment @default(UNKNOWN)
+  timestampSeconds Int?
+  createdAt        DateTime            @default(now())
+
+  call Call @relation(fields: [callId], references: [id], onDelete: Cascade)
+
+  @@index([callId])
+  @@index([competitorName])
+}
+
+model Appointment {
+  id                String            @id @default(cuid())
+  organizationId    String
+  leadId            String
+  callId            String?
+  title             String
+  startTime         DateTime
+  endTime           DateTime
+  timezone          String
+  status            AppointmentStatus @default(SCHEDULED)
+  meetingType       MeetingType       @default(DEMO)
+  meetingUrl        String?
+  notes             String?
+  externalReference String?
+  idempotencyKey    String?           @unique
+  createdAt         DateTime          @default(now())
+  updatedAt         DateTime          @updatedAt
+
+  organization Organization @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+  lead         Lead         @relation(fields: [leadId], references: [id], onDelete: Cascade)
+  call         Call?        @relation(fields: [callId], references: [id], onDelete: SetNull)
+
+  @@index([organizationId])
+  @@index([leadId])
+  @@index([callId])
+  @@index([startTime])
+  @@index([status])
+  @@index([organizationId, startTime])
+}
+
+model CallEvent {
+  id           String    @id @default(cuid())
+  retellCallId String
+  eventType    String
+  payloadHash  String
+  payload      Json
+  processedAt  DateTime?
+  errorMessage String?
+  createdAt    DateTime  @default(now())
+
+  jobs WebhookProcessingJob[]
+
+  @@unique([retellCallId, eventType, payloadHash])
+  @@index([retellCallId])
+  @@index([eventType])
+  @@index([createdAt])
+  @@index([processedAt])
+}
+
+model WebhookProcessingJob {
+  id          String    @id @default(cuid())
+  callEventId String
+  status      JobStatus @default(PENDING)
+  attempts    Int       @default(0)
+  maxAttempts Int       @default(5)
+  lastError   String?
+  lockedAt    DateTime?
+  processedAt DateTime?
+  createdAt   DateTime  @default(now())
+  updatedAt   DateTime  @updatedAt
+
+  callEvent CallEvent @relation(fields: [callEventId], references: [id], onDelete: Cascade)
+
+  @@index([status, createdAt])
+  @@index([callEventId])
+}
+
+model ToolExecution {
+  id              String              @id @default(cuid())
+  callId          String?
+  toolName        String
+  arguments       Json
+  result          Json?
+  status          ToolExecutionStatus @default(SUCCESS)
+  executionTimeMs Int?
+  createdAt       DateTime            @default(now())
+
+  call Call? @relation(fields: [callId], references: [id], onDelete: SetNull)
+
+  @@index([callId])
+  @@index([toolName])
+  @@index([createdAt])
+}
+
+model FollowUp {
+  id           String         @id @default(cuid())
+  leadId       String
+  callId       String?
+  type         FollowUpType   @default(CALLBACK)
+  scheduledFor DateTime
+  status       FollowUpStatus @default(PENDING)
+  notes        String?
+  idempotencyKey String?      @unique
+  createdAt    DateTime       @default(now())
+  updatedAt    DateTime       @updatedAt
+
+  lead Lead  @relation(fields: [leadId], references: [id], onDelete: Cascade)
+  call Call? @relation(fields: [callId], references: [id], onDelete: SetNull)
+
+  @@index([leadId])
+  @@index([callId])
+  @@index([scheduledFor])
+  @@index([status])
+}
+
+model AgentConfiguration {
+  id                  String   @id @default(cuid())
+  organizationId      String
+  campaignId          String?
+  agentName           String   @default("Ava")
+  companyName         String   @default("AutomateFlow")
+  agentPersona        String?
+  primaryObjective    String?
+  openingMessage      String?
+  valueProposition    String?
+  qualificationRules  String?
+  objectionRules      String?
+  transferRules       String?
+  bookingRules        String?
+  complianceRules     String?
+  createdAt           DateTime @default(now())
+  updatedAt           DateTime @updatedAt
+
+  organization Organization @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+  campaign     Campaign?    @relation(fields: [campaignId], references: [id], onDelete: SetNull)
+
+  @@index([organizationId])
+  @@index([campaignId])
+}
+
+model HumanHandoff {
+  id             String         @id @default(cuid())
+  organizationId String
+  leadId         String
+  callId         String?
+  reason         String
+  urgency        HandoffUrgency @default(MEDIUM)
+  summary        String?
+  transferNumber String
+  salesRepName   String?
+  transferType   TransferType   @default(WARM)
+  createdAt      DateTime       @default(now())
+
+  organization Organization @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+  lead         Lead         @relation(fields: [leadId], references: [id], onDelete: Cascade)
+  call         Call?        @relation(fields: [callId], references: [id], onDelete: SetNull)
+
+  @@index([organizationId])
+  @@index([leadId])
+  @@index([callId])
+}
+
+model AuditLog {
+  id             String   @id @default(cuid())
+  organizationId String
+  userId         String?
+  action         String
+  entityType     String
+  entityId       String?
+  metadata       Json?
+  createdAt      DateTime @default(now())
+
+  organization Organization @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+  user         User?        @relation(fields: [userId], references: [id], onDelete: SetNull)
+
+  @@index([organizationId])
+  @@index([userId])
+  @@index([entityType, entityId])
+  @@index([createdAt])
+}

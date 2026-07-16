@@ -1,0 +1,26 @@
+{
+  "name": "closerai",
+  "private": true,
+  "version": "1.0.0",
+  "description": "CloserAI — AI Sales Call Closer powered by Retell AI",
+  "scripts": {
+    "dev": "pnpm -r --parallel --filter @closerai/api --filter @closerai/web run dev",
+    "dev:api": "pnpm --filter @closerai/api dev",
+    "dev:web": "pnpm --filter @closerai/web dev",
+    "build": "pnpm -r run build",
+    "db:generate": "pnpm --filter @closerai/database generate",
+    "db:migrate": "pnpm --filter @closerai/database migrate:dev",
+    "db:migrate:deploy": "pnpm --filter @closerai/database migrate:deploy",
+    "db:seed": "pnpm --filter @closerai/database seed",
+    "db:studio": "pnpm --filter @closerai/database studio",
+    "test": "pnpm -r --filter @closerai/api --filter @closerai/shared run test",
+    "test:e2e": "pnpm --filter @closerai/web test:e2e",
+    "lint": "pnpm -r run lint",
+    "typecheck": "pnpm -r run typecheck"
+  },
+  "engines": {
+    "node": ">=18.10.0",
+    "pnpm": ">=9.0.0"
+  },
+  "packageManager": "pnpm@9.12.0"
+}
