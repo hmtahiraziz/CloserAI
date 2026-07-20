@@ -12,19 +12,21 @@ import {
   Settings,
   FlaskConical,
   LogOut,
+  CircleHelp,
 } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { api } from '@/lib/api';
 import { toast } from 'sonner';
+import { startProductTour } from '@/components/product-tour';
 
 const links = [
-  { href: '/dashboard', label: 'Overview', icon: LayoutDashboard },
-  { href: '/leads', label: 'Leads', icon: Users },
-  { href: '/campaigns', label: 'Campaigns', icon: Megaphone },
-  { href: '/calls', label: 'Calls', icon: PhoneCall },
-  { href: '/appointments', label: 'Appointments', icon: Calendar },
-  { href: '/analytics', label: 'Analytics', icon: BarChart3 },
-  { href: '/settings', label: 'Settings', icon: Settings },
+  { href: '/dashboard', label: 'Overview', icon: LayoutDashboard, tourId: 'nav-overview' },
+  { href: '/leads', label: 'Leads', icon: Users, tourId: 'nav-leads' },
+  { href: '/campaigns', label: 'Campaigns', icon: Megaphone, tourId: 'nav-campaigns' },
+  { href: '/calls', label: 'Calls', icon: PhoneCall, tourId: 'nav-calls' },
+  { href: '/appointments', label: 'Appointments', icon: Calendar, tourId: 'nav-appointments' },
+  { href: '/analytics', label: 'Analytics', icon: BarChart3, tourId: 'nav-analytics' },
+  { href: '/settings', label: 'Settings', icon: Settings, tourId: 'nav-settings' },
 ];
 
 export function Sidebar() {
@@ -40,7 +42,7 @@ export function Sidebar() {
 
   return (
     <aside className="flex w-60 shrink-0 flex-col border-r border-border bg-white/80 backdrop-blur">
-      <div className="border-b border-border px-5 py-5">
+      <div className="border-b border-border px-5 py-5" data-tour="brand">
         <Link href="/dashboard" className="font-display text-xl tracking-tight text-primary">
           CloserAI
         </Link>
@@ -54,6 +56,7 @@ export function Sidebar() {
             <Link
               key={link.href}
               href={link.href}
+              data-tour={link.tourId}
               className={cn(
                 'flex items-center gap-2.5 rounded-md px-3 py-2 text-sm transition',
                 active ? 'bg-primary/10 font-medium text-primary' : 'text-slate-600 hover:bg-muted',
@@ -79,8 +82,18 @@ export function Sidebar() {
           </Link>
         ) : null}
       </nav>
-      <div className="border-t border-border p-3">
+      <div className="border-t border-border p-3 space-y-1">
         <button
+          type="button"
+          data-tour="tour-replay"
+          onClick={() => startProductTour({ force: true })}
+          className="flex w-full items-center gap-2.5 rounded-md px-3 py-2 text-sm text-slate-600 hover:bg-muted"
+        >
+          <CircleHelp className="h-4 w-4" />
+          Take a tour
+        </button>
+        <button
+          type="button"
           onClick={logout}
           className="flex w-full items-center gap-2.5 rounded-md px-3 py-2 text-sm text-slate-600 hover:bg-muted"
         >
