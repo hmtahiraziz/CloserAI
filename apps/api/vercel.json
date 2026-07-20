@@ -1,6 +1,17 @@
 {
   "$schema": "https://openapi.vercel.sh/vercel.json",
+  "version": 2,
   "framework": null,
-  "installCommand": "echo \"Wrong Vercel Root Directory: apps/api is the NestJS API, not Next.js.\" && echo \"In Vercel → Project Settings → General → Root Directory, set it to: apps/web\" && exit 1",
-  "buildCommand": "exit 1"
+  "installCommand": "cd ../.. && pnpm install",
+  "buildCommand": "cd ../.. && pnpm --filter @closerai/api build",
+  "functions": {
+    "api/index.js": {
+      "memory": 1024,
+      "maxDuration": 60,
+      "includeFiles": "{dist/**,../../packages/shared/dist/**,../../packages/database/dist/**,../../node_modules/.prisma/**,../../node_modules/@prisma/client/**}"
+    }
+  },
+  "rewrites": [
+    { "source": "/(.*)", "destination": "/api" }
+  ]
 }
