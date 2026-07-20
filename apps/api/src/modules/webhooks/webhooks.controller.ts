@@ -10,7 +10,7 @@ import {
 import { ApiTags, ApiExcludeEndpoint } from '@nestjs/swagger';
 import { ConfigService } from '@nestjs/config';
 import { Throttle } from '@nestjs/throttler';
-import { Request, Response } from 'express';
+import type { Request, Response } from 'express';
 import { Public } from '../../common/guards/auth.guard';
 import { RetellSignatureVerifier } from '../retell/retell.service';
 import { WebhookProcessorService } from './webhook-processor.service';

@@ -1,6 +1,6 @@
 import { Body, Controller, Get, HttpCode, Post, Res, Req } from '@nestjs/common';
 import { ApiTags, ApiOperation } from '@nestjs/swagger';
-import { Response, Request } from 'express';
+import type { Response, Request } from 'express';
 import { ConfigService } from '@nestjs/config';
 import { Throttle } from '@nestjs/throttler';
 import { loginSchema } from '@closerai/shared';

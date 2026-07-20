@@ -10,7 +10,7 @@ import {
 import { ApiTags, ApiExcludeEndpoint } from '@nestjs/swagger';
 import { ConfigService } from '@nestjs/config';
 import { Throttle } from '@nestjs/throttler';
-import { Request } from 'express';
+import type { Request } from 'express';
 import {
   getLeadContextArgsSchema,
   saveCallDiscoveryArgsSchema,

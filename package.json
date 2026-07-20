@@ -8,6 +8,8 @@
     "dev:api": "pnpm --filter @closerai/api dev",
     "dev:web": "pnpm --filter @closerai/web dev",
     "build": "pnpm db:generate && pnpm -r run build",
+    "start": "pnpm --filter @closerai/api start:prod",
+    "start:api": "pnpm --filter @closerai/api start:prod",
     "db:generate": "pnpm --filter @closerai/database generate",
     "db:migrate": "pnpm --filter @closerai/database migrate:dev",
     "db:migrate:deploy": "pnpm --filter @closerai/database migrate:deploy",

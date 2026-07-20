@@ -6,7 +6,7 @@ import { DocumentBuilder, SwaggerModule } from '@nestjs/swagger';
 import { ConfigService } from '@nestjs/config';
 import cookieParser from 'cookie-parser';
 import helmet from 'helmet';
-import { json } from 'express';
+import { json, type Request } from 'express';
 import { AppModule } from './app.module';
 import { AppEnv } from './config/env';
 
@@ -22,10 +22,11 @@ async function bootstrap() {
   app.use(helmet({ contentSecurityPolicy: false }));
   app.use(cookieParser(config.get('COOKIE_SECRET')));
 
-  // Preserve raw body for Retell signature verification
+  // Preserve raw body for Retell signature verification.
+  // Import json from express (declared as a direct dependency for pnpm/serverless).
   app.use(
     json({
-      verify: (req: import('express').Request & { rawBody?: Buffer }, _res, buf) => {
+      verify: (req: Request & { rawBody?: Buffer }, _res, buf) => {
         if (req.originalUrl?.includes('/webhooks/retell') || req.originalUrl?.includes('/retell/functions')) {
           req.rawBody = Buffer.from(buf);
         }
