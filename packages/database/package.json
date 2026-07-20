@@ -17,17 +17,17 @@
     "seed": "tsx prisma/seed.ts",
     "studio": "prisma studio",
     "build": "prisma generate && rm -rf dist && tsc -p tsconfig.json",
-    "postinstall": "prisma generate",
+    "postinstall": "node ./scripts/postinstall-generate.js",
     "typecheck": "tsc -p tsconfig.json --noEmit",
     "lint": "echo \"no lint configured\""
   },
   "dependencies": {
     "@prisma/client": "^5.22.0",
     "@closerai/shared": "workspace:*",
-    "argon2": "^0.41.1"
+    "argon2": "^0.41.1",
+    "prisma": "^5.22.0"
   },
   "devDependencies": {
-    "prisma": "^5.22.0",
     "tsx": "^4.19.1",
     "typescript": "^5.6.3",
     "@types/node": "^22.7.5"
