@@ -28,6 +28,8 @@ import { AuthGuard } from './common/guards/auth.guard';
 import { RequestIdMiddleware } from './common/middleware/request-id.middleware';
 import { AuthService } from './modules/auth/auth.service';
 
+const useEnvFiles = process.env.VERCEL !== '1' && process.env.NODE_ENV !== 'production';
+
 const envFilePath = [
   resolve(process.cwd(), '../../.env'),
   resolve(process.cwd(), '.env'),
@@ -39,8 +41,9 @@ const envFilePath = [
   imports: [
     ConfigModule.forRoot({
       isGlobal: true,
-      // Env is preloaded in load-env.ts; keep these paths as a fallback
-      envFilePath,
+      // On Vercel/production, only use platform env vars (never localhost .env).
+      ignoreEnvFile: !useEnvFiles,
+      envFilePath: useEnvFiles ? envFilePath : undefined,
       validate: validateEnv,
     }),
     ThrottlerModule.forRoot([{ ttl: 60000, limit: 100 }]),
