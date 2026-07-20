@@ -1,17 +1,4 @@
 {
   "$schema": "https://openapi.vercel.sh/vercel.json",
-  "version": 2,
-  "framework": null,
-  "installCommand": "cd ../.. && pnpm install",
-  "buildCommand": "cd ../.. && pnpm --filter @closerai/api build",
-  "functions": {
-    "api/index.js": {
-      "memory": 1024,
-      "maxDuration": 60,
-      "includeFiles": "{dist/**,../../packages/shared/dist/**,../../packages/database/dist/**,../../node_modules/.prisma/**,../../node_modules/@prisma/client/**}"
-    }
-  },
-  "rewrites": [
-    { "source": "/(.*)", "destination": "/api" }
-  ]
+  "installCommand": "cd ../.. && pnpm install && pnpm --filter @closerai/shared build && pnpm --filter @closerai/database build"
 }

@@ -2,10 +2,9 @@ import { NestFactory } from '@nestjs/core';
 import { ValidationPipe, Logger, type INestApplication } from '@nestjs/common';
 import { DocumentBuilder, SwaggerModule } from '@nestjs/swagger';
 import { ConfigService } from '@nestjs/config';
-import { ExpressAdapter } from '@nestjs/platform-express';
 import cookieParser from 'cookie-parser';
 import helmet from 'helmet';
-import express, { json, type Express, type Request } from 'express';
+import { json, type Request } from 'express';
 import { AppModule } from './app.module';
 import { AppEnv } from './config/env';
 import { loadedEnvFiles } from './load-env';
@@ -55,31 +54,15 @@ export async function configureNestApp(app: INestApplication): Promise<void> {
   SwaggerModule.setup('api/docs', app, SwaggerModule.createDocument(app, swagger));
 }
 
-/** Local / Docker: Nest listens on a port. */
+/** Local / Docker / Vercel: Nest listens on PORT (Vercel) or API_PORT. */
 export async function bootstrapHttpServer(): Promise<INestApplication> {
   const app = await NestFactory.create(AppModule, { bodyParser: false });
   await configureNestApp(app);
   const config = app.get(ConfigService<AppEnv, true>);
-  const port = config.get('API_PORT');
+  const port = Number(process.env.PORT) || config.get('API_PORT');
   await app.listen(port);
   const logger = new Logger('Bootstrap');
   logger.log(`CloserAI API listening on http://localhost:${port}`);
   logger.log(`Swagger docs at http://localhost:${port}/api/docs`);
   return app;
-}
-
-/** Vercel / serverless: return a cached Express instance (no listen). */
-let cachedExpress: Express | undefined;
-
-export async function getExpressApp(): Promise<Express> {
-  if (cachedExpress) return cachedExpress;
-
-  const expressApp = express();
-  const app = await NestFactory.create(AppModule, new ExpressAdapter(expressApp), {
-    bodyParser: false,
-  });
-  await configureNestApp(app);
-  await app.init();
-  cachedExpress = expressApp;
-  return expressApp;
 }
