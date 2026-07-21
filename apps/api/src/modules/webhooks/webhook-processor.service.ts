@@ -265,6 +265,21 @@ export class WebhookProcessorService {
           where: { campaignId: c.campaignId, leadId: c.leadId },
           data: { status: 'CALLED', lastAttemptAt: new Date() },
         });
+        const remaining = await this.prisma.campaignLead.count({
+          where: {
+            campaignId: c.campaignId,
+            status: { in: ['PENDING', 'QUEUED'] },
+          },
+        });
+        const total = await this.prisma.campaignLead.count({
+          where: { campaignId: c.campaignId },
+        });
+        if (total > 0 && remaining === 0) {
+          await this.prisma.campaign.updateMany({
+            where: { id: c.campaignId, status: 'ACTIVE' },
+            data: { status: 'COMPLETED' },
+          });
+        }
       }
       // Only update lead if not already analyzed into a stronger status
       const lead = await this.prisma.lead.findUnique({ where: { id: c.leadId } });

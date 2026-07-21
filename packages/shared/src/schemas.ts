@@ -46,12 +46,17 @@ export const createLeadSchema = z.object({
   estimatedDealValue: z.number().nonnegative().optional().nullable(),
   preferredCallTime: z.string().max(200).optional().nullable(),
   notes: z.string().max(5000).optional().nullable(),
+  /** Optional campaign to assign the lead to on create */
+  campaignId: z.string().cuid().optional().nullable(),
 });
 
-export const updateLeadSchema = createLeadSchema.partial().extend({
-  doNotCall: z.boolean().optional(),
-  nextFollowUpAt: z.string().datetime().optional().nullable(),
-});
+export const updateLeadSchema = createLeadSchema
+  .omit({ campaignId: true })
+  .partial()
+  .extend({
+    doNotCall: z.boolean().optional(),
+    nextFollowUpAt: z.string().datetime().optional().nullable(),
+  });
 
 export const leadFilterSchema = paginationSchema.extend({
   search: z.string().optional(),
@@ -65,6 +70,8 @@ export const leadFilterSchema = paginationSchema.extend({
 export const createCampaignSchema = z.object({
   name: z.string().min(1).max(200),
   description: z.string().max(2000).optional().nullable(),
+  /** Prefer selecting an agent from the Agents tab; credentials resolve from that agent. */
+  agentConfigurationId: z.string().cuid().optional().nullable(),
   retellAgentId: z.string().max(200).optional().nullable(),
   retellPhoneNumber: z.string().max(30).optional().nullable(),
   productName: z.string().max(200).default('AutomateFlow'),
@@ -74,6 +81,27 @@ export const createCampaignSchema = z.object({
 });
 
 export const updateCampaignSchema = createCampaignSchema.partial();
+
+export const createAgentSchema = z.object({
+  agentName: z.string().min(1).max(100),
+  companyName: z.string().min(1).max(200).default('AutomateFlow'),
+  retellAgentId: z.string().min(1).max(200),
+  retellPhoneNumber: z.string().min(5).max(30),
+  isDefault: z.boolean().optional(),
+  agentPersona: z.string().max(2000).optional().nullable(),
+  primaryObjective: z.string().max(1000).optional().nullable(),
+  openingMessage: z.string().max(2000).optional().nullable(),
+  valueProposition: z.string().max(2000).optional().nullable(),
+  qualificationRules: z.string().max(5000).optional().nullable(),
+  objectionRules: z.string().max(5000).optional().nullable(),
+  transferRules: z.string().max(5000).optional().nullable(),
+  bookingRules: z.string().max(5000).optional().nullable(),
+  complianceRules: z.string().max(5000).optional().nullable(),
+  campaignId: z.string().cuid().optional().nullable(),
+});
+
+export const updateAgentSchema = createAgentSchema.partial();
+
 
 export const startCallSchema = z.object({
   campaignId: z.string().cuid(),
@@ -227,6 +255,8 @@ export type LoginInput = z.infer<typeof loginSchema>;
 export type CreateLeadInput = z.infer<typeof createLeadSchema>;
 export type UpdateLeadInput = z.infer<typeof updateLeadSchema>;
 export type CreateCampaignInput = z.infer<typeof createCampaignSchema>;
+export type CreateAgentInput = z.infer<typeof createAgentSchema>;
+export type UpdateAgentInput = z.infer<typeof updateAgentSchema>;
 export type StartCallInput = z.infer<typeof startCallSchema>;
 export type PostCallAnalysis = z.infer<typeof postCallAnalysisSchema>;
 export type UserRoleType = `${UserRole}`;
