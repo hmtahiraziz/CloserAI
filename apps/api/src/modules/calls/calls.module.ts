@@ -1,4 +1,4 @@
-import { Module } from '@nestjs/common';
+import { Module, forwardRef } from '@nestjs/common';
 import { CallsService } from './calls.service';
 import { CallsController } from './calls.controller';
 import { LeadsModule } from '../leads/leads.module';
@@ -7,7 +7,7 @@ import { RetellModule } from '../retell/retell.module';
 import { AuditLogsModule } from '../audit-logs/audit-logs.module';
 
 @Module({
-  imports: [LeadsModule, CampaignsModule, RetellModule, AuditLogsModule],
+  imports: [LeadsModule, forwardRef(() => CampaignsModule), RetellModule, AuditLogsModule],
   providers: [CallsService],
   controllers: [CallsController],
   exports: [CallsService],

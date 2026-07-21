@@ -23,6 +23,12 @@ type Lead = {
   doNotCall: boolean;
 };
 
+type Campaign = {
+  id: string;
+  name: string;
+  status: string;
+};
+
 const createSchema = z.object({
   firstName: z.string().min(1),
   lastName: z.string().min(1),
@@ -30,6 +36,7 @@ const createSchema = z.object({
   companyName: z.string().min(1),
   email: z.string().email().optional().or(z.literal('')),
   industry: z.string().optional(),
+  campaignId: z.string().optional().or(z.literal('')),
 });
 
 export default function LeadsPage() {
@@ -50,19 +57,41 @@ export default function LeadsPage() {
     queryFn: () => api<{ items: Lead[]; meta: { total: number } }>(`/leads?${query}`),
   });
 
+  const { data: campaigns } = useQuery({
+    queryKey: ['campaigns'],
+    queryFn: () => api<Campaign[]>('/campaigns'),
+  });
+
   const form = useForm<z.infer<typeof createSchema>>({
     resolver: zodResolver(createSchema),
-    defaultValues: { firstName: '', lastName: '', phone: '', companyName: '', email: '' },
+    defaultValues: {
+      firstName: '',
+      lastName: '',
+      phone: '',
+      companyName: '',
+      email: '',
+      industry: '',
+      campaignId: '',
+    },
   });
 
   const createMutation = useMutation({
-    mutationFn: (values: z.infer<typeof createSchema>) =>
-      api('/leads', { method: 'POST', body: JSON.stringify(values) }),
+    mutationFn: (values: z.infer<typeof createSchema>) => {
+      const { campaignId, ...rest } = values;
+      return api('/leads', {
+        method: 'POST',
+        body: JSON.stringify({
+          ...rest,
+          ...(campaignId ? { campaignId } : {}),
+        }),
+      });
+    },
     onSuccess: () => {
       toast.success('Lead created');
       setShowCreate(false);
       form.reset();
       qc.invalidateQueries({ queryKey: ['leads'] });
+      qc.invalidateQueries({ queryKey: ['campaigns'] });
     },
     onError: (e) => toast.error(e instanceof ApiClientError ? e.message : 'Failed'),
   });
@@ -76,10 +105,13 @@ export default function LeadsPage() {
         </div>
         <div className="flex gap-2">
           <a href="/api/leads/export/csv" className="contents">
-            <Button variant="secondary" onClick={(e) => {
-              e.preventDefault();
-              window.open('/api/leads/export/csv', '_blank');
-            }}>
+            <Button
+              variant="secondary"
+              onClick={(e) => {
+                e.preventDefault();
+                window.open('/api/leads/export/csv', '_blank');
+              }}
+            >
               Export CSV
             </Button>
           </a>
@@ -124,6 +156,20 @@ export default function LeadsPage() {
                 </div>
               ),
             )}
+            <div className="space-y-1">
+              <Label>Campaign (optional)</Label>
+              <select
+                className="flex h-10 w-full rounded-md border border-input bg-white px-3 text-sm"
+                {...form.register('campaignId')}
+              >
+                <option value="">No campaign</option>
+                {(campaigns ?? []).map((c) => (
+                  <option key={c.id} value={c.id}>
+                    {c.name} ({c.status})
+                  </option>
+                ))}
+              </select>
+            </div>
             <div className="md:col-span-3">
               <Button type="submit" disabled={createMutation.isPending}>
                 Save lead
@@ -156,9 +202,7 @@ export default function LeadsPage() {
                     <Link href={`/leads/${lead.id}`} className="font-medium hover:text-primary">
                       {lead.firstName} {lead.lastName}
                     </Link>
-                    {lead.doNotCall ? (
-                      <Badge tone="danger">DNC</Badge>
-                    ) : null}
+                    {lead.doNotCall ? <Badge tone="danger">DNC</Badge> : null}
                   </td>
                   <td className="px-4 py-3">{lead.companyName}</td>
                   <td className="px-4 py-3">

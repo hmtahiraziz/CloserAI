@@ -324,27 +324,30 @@ model Lead {
 }
 
 model Campaign {
-  id                 String         @id @default(cuid())
-  organizationId     String
-  name               String
-  description        String?
-  status             CampaignStatus @default(DRAFT)
-  retellAgentId      String?
-  retellPhoneNumber  String?
-  productName        String         @default("AutomateFlow")
-  targetAudience     String?
-  defaultObjective   String?
-  createdAt          DateTime       @default(now())
-  updatedAt          DateTime       @updatedAt
+  id                     String         @id @default(cuid())
+  organizationId         String
+  name                   String
+  description            String?
+  status                 CampaignStatus @default(DRAFT)
+  retellAgentId          String?
+  retellPhoneNumber      String?
+  agentConfigurationId   String?
+  productName            String         @default("AutomateFlow")
+  targetAudience         String?
+  defaultObjective       String?
+  createdAt              DateTime       @default(now())
+  updatedAt              DateTime       @updatedAt
 
-  organization        Organization         @relation(fields: [organizationId], references: [id], onDelete: Cascade)
-  campaignLeads       CampaignLead[]
-  calls               Call[]
-  agentConfigurations AgentConfiguration[]
+  organization         Organization         @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+  agentConfiguration   AgentConfiguration?  @relation("CampaignPrimaryAgent", fields: [agentConfigurationId], references: [id], onDelete: SetNull)
+  campaignLeads        CampaignLead[]
+  calls                Call[]
+  agentConfigurations  AgentConfiguration[] @relation("AgentLinkedCampaign")
 
   @@index([organizationId])
   @@index([status])
   @@index([createdAt])
+  @@index([agentConfigurationId])
 }
 
 model CampaignLead {
@@ -588,6 +591,9 @@ model AgentConfiguration {
   campaignId          String?
   agentName           String   @default("Ava")
   companyName         String   @default("AutomateFlow")
+  retellAgentId       String?
+  retellPhoneNumber   String?
+  isDefault           Boolean  @default(false)
   agentPersona        String?
   primaryObjective    String?
   openingMessage      String?
@@ -601,10 +607,12 @@ model AgentConfiguration {
   updatedAt           DateTime @updatedAt
 
   organization Organization @relation(fields: [organizationId], references: [id], onDelete: Cascade)
-  campaign     Campaign?    @relation(fields: [campaignId], references: [id], onDelete: SetNull)
+  campaign     Campaign?    @relation("AgentLinkedCampaign", fields: [campaignId], references: [id], onDelete: SetNull)
+  campaigns    Campaign[]   @relation("CampaignPrimaryAgent")
 
   @@index([organizationId])
   @@index([campaignId])
+  @@index([isDefault])
 }
 
 model HumanHandoff {
