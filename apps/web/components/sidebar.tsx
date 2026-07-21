@@ -41,14 +41,14 @@ export function Sidebar() {
   }
 
   return (
-    <aside className="flex w-60 shrink-0 flex-col border-r border-border bg-white/80 backdrop-blur">
+    <aside className="flex h-full w-60 shrink-0 flex-col border-r border-border bg-white/80 backdrop-blur">
       <div className="border-b border-border px-5 py-5" data-tour="brand">
         <Link href="/dashboard" className="font-display text-xl tracking-tight text-primary">
           CloserAI
         </Link>
         <p className="mt-1 text-xs text-muted-foreground">Sales call intelligence</p>
       </div>
-      <nav className="flex flex-1 flex-col gap-1 p-3">
+      <nav className="flex min-h-0 flex-1 flex-col gap-1 overflow-y-auto p-3">
         {links.map((link) => {
           const Icon = link.icon;
           const active = pathname === link.href || pathname.startsWith(`${link.href}/`);
@@ -82,7 +82,7 @@ export function Sidebar() {
           </Link>
         ) : null}
       </nav>
-      <div className="border-t border-border p-3 space-y-1">
+      <div className="mt-auto shrink-0 border-t border-border p-3 space-y-1">
         <button
           type="button"
           data-tour="tour-replay"
