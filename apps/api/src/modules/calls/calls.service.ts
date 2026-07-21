@@ -191,7 +191,7 @@ export class CallsService {
     const campaign = await this.campaigns.getActive(user.organizationId, parsed.campaignId);
     await this.assertNoActiveCall(user.organizationId, leadId);
 
-    const agentId = campaign.retellAgentId || this.config.get('RETELL_AGENT_ID');
+    const agentId = await this.resolveRetellAgentId(user.organizationId, campaign.retellAgentId);
     const fromNumber = campaign.retellPhoneNumber || this.config.get('RETELL_PHONE_NUMBER');
     if (!agentId || !fromNumber) {
       throw new ServiceUnavailableException({
@@ -290,11 +290,7 @@ export class CallsService {
     const campaign = await this.campaigns.getActive(user.organizationId, parsed.campaignId);
     await this.assertNoActiveCall(user.organizationId, leadId);
 
-    const agentId =
-      campaign.retellAgentId ||
-      this.config.get('RETELL_AGENT_ID') ||
-      (await this.prisma.organizationSettings.findUnique({ where: { organizationId: user.organizationId } }))
-        ?.retellAgentId;
+    const agentId = await this.resolveRetellAgentId(user.organizationId, campaign.retellAgentId);
 
     if (
       !agentId ||
@@ -390,6 +386,28 @@ export class CallsService {
         message: 'Failed to create web call with Retell',
       });
     }
+  }
+
+  /**
+   * Prefer campaign agent, then org settings, then env.
+   * Seed placeholder IDs are ignored so a real RETELL_AGENT_ID can take effect.
+   */
+  private async resolveRetellAgentId(
+    organizationId: string,
+    campaignAgentId?: string | null,
+  ): Promise<string | undefined> {
+    const isUsable = (id?: string | null) =>
+      Boolean(id?.trim()) && id !== 'agent_demo_placeholder';
+
+    if (isUsable(campaignAgentId)) return campaignAgentId!.trim();
+
+    const orgSettings = await this.prisma.organizationSettings.findUnique({
+      where: { organizationId },
+    });
+    if (isUsable(orgSettings?.retellAgentId)) return orgSettings!.retellAgentId!.trim();
+
+    const fromEnv = this.config.get('RETELL_AGENT_ID') || process.env.RETELL_AGENT_ID;
+    return isUsable(fromEnv) ? fromEnv!.trim() : undefined;
   }
 
   async markReviewed(organizationId: string, id: string, userId: string) {
