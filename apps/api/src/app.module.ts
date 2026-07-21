@@ -12,6 +12,7 @@ import { UsersModule } from './modules/users/users.module';
 import { OrganizationsModule } from './modules/organizations/organizations.module';
 import { LeadsModule } from './modules/leads/leads.module';
 import { CampaignsModule } from './modules/campaigns/campaigns.module';
+import { AgentsModule } from './modules/agents/agents.module';
 import { CallsModule } from './modules/calls/calls.module';
 import { AppointmentsModule } from './modules/appointments/appointments.module';
 import { RetellModule } from './modules/retell/retell.module';
@@ -54,6 +55,7 @@ const envFilePath = [
     OrganizationsModule,
     LeadsModule,
     CampaignsModule,
+    AgentsModule,
     CallsModule,
     AppointmentsModule,
     RetellModule,

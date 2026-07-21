@@ -37,7 +37,15 @@ export const tourSteps: TourStep[] = [
     element: '[data-tour="nav-campaigns"]',
     title: 'Campaigns',
     description:
-      'Create outbound campaigns with a Retell agent, phone number, and objective, then activate or pause them.',
+      'Create outbound campaigns with an objective, assign an agent from the Agents tab, then start dialing leads.',
+    side: 'right',
+    align: 'start',
+  },
+  {
+    element: '[data-tour="nav-agents"]',
+    title: 'Agents',
+    description:
+      'Configure Retell agent IDs, phone numbers, and personas used when campaigns dial leads.',
     side: 'right',
     align: 'start',
   },
