@@ -1,13 +1,17 @@
 import {
   BadRequestException,
   ConflictException,
+  HttpException,
+  Inject,
   Injectable,
   NotFoundException,
   ServiceUnavailableException,
+  forwardRef,
 } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
 import {
   CallStatus,
+  CampaignStatus,
   LeadStatus,
   startCallSchema,
   normalizePhone,
@@ -25,6 +29,7 @@ export class CallsService {
   constructor(
     private readonly prisma: PrismaService,
     private readonly leads: LeadsService,
+    @Inject(forwardRef(() => CampaignsService))
     private readonly campaigns: CampaignsService,
     private readonly retell: RetellClientService,
     private readonly config: ConfigService<AppEnv, true>,
@@ -191,14 +196,15 @@ export class CallsService {
     const campaign = await this.campaigns.getActive(user.organizationId, parsed.campaignId);
     await this.assertNoActiveCall(user.organizationId, leadId);
 
-    const agentId = await this.resolveRetellAgentId(user.organizationId, campaign.retellAgentId);
-    const fromNumber = campaign.retellPhoneNumber || this.config.get('RETELL_PHONE_NUMBER');
-    if (!agentId || !fromNumber) {
+    const dial = await this.resolveDialCredentials(user.organizationId, campaign);
+    if (!dial.agentId || !dial.fromNumber) {
       throw new ServiceUnavailableException({
         code: 'MISSING_RETELL_CONFIG',
-        message: 'Missing Retell agent ID or phone number configuration',
+        message:
+          'Missing Retell agent ID or phone number. Add an agent under Agents, or set org/env defaults.',
       });
     }
+    const { agentId, fromNumber } = dial;
 
     const dynamicVars = await this.buildLeadCallContext(user, lead, campaign);
 
@@ -290,18 +296,19 @@ export class CallsService {
     const campaign = await this.campaigns.getActive(user.organizationId, parsed.campaignId);
     await this.assertNoActiveCall(user.organizationId, leadId);
 
-    const agentId = await this.resolveRetellAgentId(user.organizationId, campaign.retellAgentId);
+    const dial = await this.resolveDialCredentials(user.organizationId, campaign);
 
     if (
-      !agentId ||
+      !dial.agentId ||
       !String(this.config.get('RETELL_API_KEY') || process.env.RETELL_API_KEY || '').trim()
     ) {
       throw new ServiceUnavailableException({
         code: 'MISSING_RETELL_CONFIG',
         message:
-          'Missing Retell configuration. Set RETELL_API_KEY and RETELL_AGENT_ID (phone number not required for web calls).',
+          'Missing Retell configuration. Add an agent under Agents (or set RETELL_API_KEY / RETELL_AGENT_ID). Phone number is not required for web calls.',
       });
     }
+    const { agentId } = dial;
 
     const dynamicVars = await this.buildLeadCallContext(user, lead, campaign);
 
@@ -389,25 +396,80 @@ export class CallsService {
   }
 
   /**
-   * Prefer campaign agent, then org settings, then env.
-   * Seed placeholder IDs are ignored so a real RETELL_AGENT_ID can take effect.
+   * Prefer campaign-linked agent, then campaign legacy fields, then org default agent,
+   * then org settings, then env. Seed placeholder agent IDs are ignored.
    */
+  private async resolveDialCredentials(
+    organizationId: string,
+    campaign: {
+      retellAgentId?: string | null;
+      retellPhoneNumber?: string | null;
+      agentConfigurationId?: string | null;
+    },
+  ): Promise<{ agentId?: string; fromNumber?: string }> {
+    const isUsable = (id?: string | null) =>
+      Boolean(id?.trim()) && id !== 'agent_demo_placeholder';
+
+    let agentId = isUsable(campaign.retellAgentId) ? campaign.retellAgentId!.trim() : undefined;
+    let fromNumber = campaign.retellPhoneNumber?.trim() || undefined;
+
+    if (campaign.agentConfigurationId) {
+      const linked = await this.prisma.agentConfiguration.findFirst({
+        where: { id: campaign.agentConfigurationId, organizationId },
+      });
+      if (linked) {
+        if (isUsable(linked.retellAgentId)) agentId = linked.retellAgentId!.trim();
+        if (linked.retellPhoneNumber?.trim()) fromNumber = linked.retellPhoneNumber.trim();
+      }
+    }
+
+    if (!agentId || !fromNumber) {
+      const orgAgent = await this.prisma.agentConfiguration.findFirst({
+        where: { organizationId },
+        orderBy: [{ isDefault: 'desc' }, { createdAt: 'desc' }],
+      });
+      if (orgAgent) {
+        if (!agentId && isUsable(orgAgent.retellAgentId)) agentId = orgAgent.retellAgentId!.trim();
+        if (!fromNumber && orgAgent.retellPhoneNumber?.trim()) {
+          fromNumber = orgAgent.retellPhoneNumber.trim();
+        }
+      }
+    }
+
+    if (!agentId || !fromNumber) {
+      const orgSettings = await this.prisma.organizationSettings.findUnique({
+        where: { organizationId },
+      });
+      if (!agentId && isUsable(orgSettings?.retellAgentId)) {
+        agentId = orgSettings!.retellAgentId!.trim();
+      }
+      if (!fromNumber && orgSettings?.retellPhoneNumber?.trim()) {
+        fromNumber = orgSettings.retellPhoneNumber.trim();
+      }
+    }
+
+    if (!agentId) {
+      const fromEnv = this.config.get('RETELL_AGENT_ID') || process.env.RETELL_AGENT_ID;
+      if (isUsable(fromEnv)) agentId = fromEnv!.trim();
+    }
+    if (!fromNumber) {
+      fromNumber =
+        this.config.get('RETELL_PHONE_NUMBER') || process.env.RETELL_PHONE_NUMBER || undefined;
+      fromNumber = fromNumber?.trim() || undefined;
+    }
+
+    return { agentId, fromNumber };
+  }
+
+  /** @deprecated Prefer resolveDialCredentials — kept for any residual callers */
   private async resolveRetellAgentId(
     organizationId: string,
     campaignAgentId?: string | null,
   ): Promise<string | undefined> {
-    const isUsable = (id?: string | null) =>
-      Boolean(id?.trim()) && id !== 'agent_demo_placeholder';
-
-    if (isUsable(campaignAgentId)) return campaignAgentId!.trim();
-
-    const orgSettings = await this.prisma.organizationSettings.findUnique({
-      where: { organizationId },
+    const dial = await this.resolveDialCredentials(organizationId, {
+      retellAgentId: campaignAgentId,
     });
-    if (isUsable(orgSettings?.retellAgentId)) return orgSettings!.retellAgentId!.trim();
-
-    const fromEnv = this.config.get('RETELL_AGENT_ID') || process.env.RETELL_AGENT_ID;
-    return isUsable(fromEnv) ? fromEnv!.trim() : undefined;
+    return dial.agentId;
   }
 
   async markReviewed(organizationId: string, id: string, userId: string) {
@@ -424,5 +486,131 @@ export class CallsService {
       throw new BadRequestException({ code: 'NO_CAMPAIGN', message: 'Original call has no campaign' });
     }
     return this.startOutboundCall(user, call.leadId, { campaignId: call.campaignId });
+  }
+
+  /**
+   * Activate campaign (if needed) and dial every pending assigned lead via Retell phone.
+   * Requires a from-number via linked agent, campaign, org settings, or RETELL_PHONE_NUMBER.
+   */
+  async startCampaign(user: SessionUser, campaignId: string) {
+    const campaign = await this.campaigns.get(user.organizationId, campaignId);
+    const dial = await this.resolveDialCredentials(user.organizationId, campaign);
+
+    if (!dial.fromNumber?.trim()) {
+      throw new BadRequestException({
+        code: 'MISSING_PHONE_NUMBER',
+        message:
+          'Add an agent with a Retell phone number under Agents (or set RETELL_PHONE_NUMBER) before starting',
+      });
+    }
+
+    if (!dial.agentId) {
+      throw new BadRequestException({
+        code: 'MISSING_RETELL_AGENT',
+        message:
+          'Add an agent with a Retell agent ID under Agents (or set RETELL_AGENT_ID) before starting',
+      });
+    }
+
+    if (campaign.status !== CampaignStatus.ACTIVE) {
+      await this.campaigns.setStatus(user.organizationId, campaignId, CampaignStatus.ACTIVE);
+    }
+
+    const pending = await this.prisma.campaignLead.findMany({
+      where: {
+        campaignId,
+        status: { in: ['PENDING', 'FAILED'] },
+      },
+      include: {
+        lead: {
+          select: {
+            id: true,
+            phone: true,
+            doNotCall: true,
+            status: true,
+            firstName: true,
+            lastName: true,
+          },
+        },
+      },
+      orderBy: { createdAt: 'asc' },
+    });
+
+    const started: Array<{ leadId: string; callId: string; name: string }> = [];
+    const skipped: Array<{ leadId: string; reason: string; name: string }> = [];
+    const failed: Array<{ leadId: string; reason: string; name: string }> = [];
+
+    for (const cl of pending) {
+      const name = `${cl.lead.firstName} ${cl.lead.lastName}`.trim();
+
+      if (cl.lead.doNotCall || cl.lead.status === LeadStatus.DO_NOT_CALL) {
+        await this.prisma.campaignLead.update({
+          where: { id: cl.id },
+          data: { status: 'SKIPPED' },
+        });
+        skipped.push({ leadId: cl.leadId, reason: 'Do not call', name });
+        continue;
+      }
+
+      if (!normalizePhone(cl.lead.phone)) {
+        await this.prisma.campaignLead.update({
+          where: { id: cl.id },
+          data: { status: 'SKIPPED' },
+        });
+        skipped.push({ leadId: cl.leadId, reason: 'Invalid phone', name });
+        continue;
+      }
+
+      try {
+        const call = await this.startOutboundCall(user, cl.leadId, { campaignId });
+        started.push({ leadId: cl.leadId, callId: call.id, name });
+      } catch (err) {
+        let code: string | undefined;
+        let message = 'Failed to start call';
+        if (err instanceof HttpException) {
+          const res = err.getResponse();
+          if (typeof res === 'object' && res !== null) {
+            const body = res as { code?: string; message?: string };
+            code = body.code;
+            message = body.message ?? err.message;
+          } else {
+            message = err.message;
+          }
+        } else if (err instanceof Error) {
+          message = err.message;
+        }
+
+        if (code === 'DUPLICATE_CALL') {
+          skipped.push({ leadId: cl.leadId, reason: 'Already has an active call', name });
+          continue;
+        }
+
+        await this.prisma.campaignLead.update({
+          where: { id: cl.id },
+          data: {
+            status: 'FAILED',
+            lastAttemptAt: new Date(),
+            attemptCount: { increment: 1 },
+          },
+        });
+        failed.push({ leadId: cl.leadId, reason: message, name });
+      }
+    }
+
+    await this.campaigns.maybeComplete(campaignId);
+    const updated = await this.campaigns.get(user.organizationId, campaignId);
+
+    return {
+      campaign: updated,
+      summary: {
+        dialed: started.length,
+        skipped: skipped.length,
+        failed: failed.length,
+        pendingRemaining: updated.stats.pendingDial,
+      },
+      started,
+      skipped,
+      failed,
+    };
   }
 }
