@@ -117,40 +117,14 @@ async function main() {
     },
   });
 
-  const campaign1 = await prisma.campaign.create({
+  const agent = await prisma.agentConfiguration.create({
     data: {
       organizationId: org.id,
-      name: 'SMB Workflow Outreach Q3',
-      description: 'Outbound qualification for SMB AI workflow automation prospects.',
-      status: CampaignStatus.ACTIVE,
-      retellAgentId: process.env.RETELL_AGENT_ID || 'agent_demo_placeholder',
-      retellPhoneNumber: process.env.RETELL_PHONE_NUMBER || '+15555550100',
-      productName: 'AutomateFlow',
-      targetAudience: 'SMB operations and growth leaders',
-      defaultObjective: 'Qualify BANT and book a 30-minute discovery demo',
-    },
-  });
-
-  const campaign2 = await prisma.campaign.create({
-    data: {
-      organizationId: org.id,
-      name: 'Support Automation Expansion',
-      description: 'Target companies with high support ticket volume.',
-      status: CampaignStatus.ACTIVE,
-      retellAgentId: process.env.RETELL_AGENT_ID || 'agent_demo_placeholder',
-      retellPhoneNumber: process.env.RETELL_PHONE_NUMBER || '+15555550100',
-      productName: 'AutomateFlow',
-      targetAudience: 'Customer support directors at mid-market firms',
-      defaultObjective: 'Identify support automation pain and book demo',
-    },
-  });
-
-  await prisma.agentConfiguration.create({
-    data: {
-      organizationId: org.id,
-      campaignId: campaign1.id,
       agentName: 'Ava',
       companyName: 'AutomateFlow',
+      retellAgentId: process.env.RETELL_AGENT_ID || 'agent_demo_placeholder',
+      retellPhoneNumber: process.env.RETELL_PHONE_NUMBER || '+15555550100',
+      isDefault: true,
       agentPersona: 'Professional, consultative, calm AI sales assistant',
       primaryObjective: 'Qualify prospects and book discovery meetings',
       openingMessage:
@@ -163,6 +137,41 @@ async function main() {
       bookingRules: 'Offer 3–5 slots; confirm timezone and email before booking.',
       complianceRules: 'Disclose AI when asked. Honor DNC. Never invent facts.',
     },
+  });
+
+  const campaign1 = await prisma.campaign.create({
+    data: {
+      organizationId: org.id,
+      name: 'SMB Workflow Outreach Q3',
+      description: 'Outbound qualification for SMB AI workflow automation prospects.',
+      status: CampaignStatus.ACTIVE,
+      agentConfigurationId: agent.id,
+      retellAgentId: agent.retellAgentId,
+      retellPhoneNumber: agent.retellPhoneNumber,
+      productName: 'AutomateFlow',
+      targetAudience: 'SMB operations and growth leaders',
+      defaultObjective: 'Qualify BANT and book a 30-minute discovery demo',
+    },
+  });
+
+  const campaign2 = await prisma.campaign.create({
+    data: {
+      organizationId: org.id,
+      name: 'Support Automation Expansion',
+      description: 'Target companies with high support ticket volume.',
+      status: CampaignStatus.ACTIVE,
+      agentConfigurationId: agent.id,
+      retellAgentId: agent.retellAgentId,
+      retellPhoneNumber: agent.retellPhoneNumber,
+      productName: 'AutomateFlow',
+      targetAudience: 'Customer support directors at mid-market firms',
+      defaultObjective: 'Identify support automation pain and book demo',
+    },
+  });
+
+  await prisma.agentConfiguration.update({
+    where: { id: agent.id },
+    data: { campaignId: campaign1.id },
   });
 
   const leadDefs = [

@@ -116,27 +116,49 @@ export class LeadsService {
     if (!phone) {
       throw new BadRequestException({ code: 'INVALID_PHONE', message: 'Invalid lead phone number' });
     }
-    return this.prisma.lead.create({
-      data: {
-        organizationId,
-        firstName: input.firstName,
-        lastName: input.lastName,
-        email: input.email || null,
-        phone,
-        companyName: input.companyName,
-        jobTitle: input.jobTitle || null,
-        companySize: input.companySize || null,
-        industry: input.industry || null,
-        website: input.website || null,
-        country: input.country || null,
-        timezone: input.timezone || null,
-        source: input.source || null,
-        status: input.status ?? LeadStatus.NEW,
-        pipelineStage: input.pipelineStage ?? PipelineStage.NEW_LEAD,
-        estimatedDealValue: input.estimatedDealValue ?? null,
-        preferredCallTime: input.preferredCallTime || null,
-        notes: input.notes || null,
-      },
+
+    const campaignId = input.campaignId || null;
+    if (campaignId) {
+      const campaign = await this.prisma.campaign.findFirst({
+        where: { id: campaignId, organizationId },
+        select: { id: true },
+      });
+      if (!campaign) {
+        throw new BadRequestException({ code: 'CAMPAIGN_NOT_FOUND', message: 'Campaign not found' });
+      }
+    }
+
+    return this.prisma.$transaction(async (tx) => {
+      const lead = await tx.lead.create({
+        data: {
+          organizationId,
+          firstName: input.firstName,
+          lastName: input.lastName,
+          email: input.email || null,
+          phone,
+          companyName: input.companyName,
+          jobTitle: input.jobTitle || null,
+          companySize: input.companySize || null,
+          industry: input.industry || null,
+          website: input.website || null,
+          country: input.country || null,
+          timezone: input.timezone || null,
+          source: input.source || null,
+          status: input.status ?? LeadStatus.NEW,
+          pipelineStage: input.pipelineStage ?? PipelineStage.NEW_LEAD,
+          estimatedDealValue: input.estimatedDealValue ?? null,
+          preferredCallTime: input.preferredCallTime || null,
+          notes: input.notes || null,
+        },
+      });
+
+      if (campaignId) {
+        await tx.campaignLead.create({
+          data: { campaignId, leadId: lead.id },
+        });
+      }
+
+      return lead;
     });
   }
 
