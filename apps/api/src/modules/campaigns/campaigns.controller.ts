@@ -1,4 +1,4 @@
-import { Body, Controller, Get, Param, Patch, Post } from '@nestjs/common';
+import { Body, Controller, Get, Inject, Param, Patch, Post, forwardRef } from '@nestjs/common';
 import { ApiTags } from '@nestjs/swagger';
 import {
   createCampaignSchema,
@@ -6,6 +6,7 @@ import {
   CampaignStatus,
 } from '@closerai/shared';
 import { CampaignsService } from './campaigns.service';
+import { CallsService } from '../calls/calls.service';
 import { CurrentUser } from '../../common/decorators/current-user.decorator';
 import { SessionUser } from '../auth/auth.service';
 import { ZodValidationPipe } from '../../common/pipes/zod-validation.pipe';
@@ -16,12 +17,19 @@ import { AuditLogsService } from '../audit-logs/audit-logs.service';
 export class CampaignsController {
   constructor(
     private readonly campaigns: CampaignsService,
+    @Inject(forwardRef(() => CallsService))
+    private readonly calls: CallsService,
     private readonly audit: AuditLogsService,
   ) {}
 
   @Get()
   list(@CurrentUser() user: SessionUser) {
     return this.campaigns.list(user.organizationId);
+  }
+
+  @Get(':id/stats')
+  stats(@CurrentUser() user: SessionUser, @Param('id') id: string) {
+    return this.campaigns.stats(user.organizationId, id);
   }
 
   @Get(':id')
@@ -56,6 +64,17 @@ export class CampaignsController {
   @Post(':id/pause')
   async pause(@CurrentUser() user: SessionUser, @Param('id') id: string) {
     return this.campaigns.setStatus(user.organizationId, id, CampaignStatus.PAUSED);
+  }
+
+  @Post(':id/start')
+  async start(@CurrentUser() user: SessionUser, @Param('id') id: string) {
+    const result = await this.calls.startCampaign(user, id);
+    await this.audit.log(user.organizationId, user.id, 'CAMPAIGN_STARTED', 'Campaign', id, {
+      dialed: result.summary.dialed,
+      skipped: result.summary.skipped,
+      failed: result.summary.failed,
+    });
+    return result;
   }
 
   @Post(':id/assign-leads')
